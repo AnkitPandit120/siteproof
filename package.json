@@ -1,0 +1,33 @@
+{
+  "name": "siteproof-seo",
+  "version": "0.0.0",
+  "description": "Explainable SEO health and GEO readiness checks for websites",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "siteproof": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^5.9.3"
+  }
+}
