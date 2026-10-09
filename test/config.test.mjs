@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { validateConfig } from "../dist/index.js";
+
+test("accepts a site with route rules and explicitly bound facts", () => {
+  const config = {
+    siteUrl: "https://example.com",
+    routes: [
+      { match: "/blog/**", indexable: true, sitemap: "required", required: ["title", "canonical"] },
+      { match: "/search", indexable: false, sitemap: "excluded" },
+    ],
+    facts: { proPrice: { value: 499, currency: "INR", billingPeriod: "month" } },
+    bindings: [{ route: "/pricing", selector: "[data-price]", fact: "proPrice" }],
+  };
+
+  assert.deepEqual(validateConfig(config), { ok: true, config });
+});
+
+test("rejects a noindex route required in a sitemap and an unknown fact binding", () => {
+  const result = validateConfig({
+    siteUrl: "https://example.com",
+    routes: [{ match: "/private", indexable: false, sitemap: "required" }],
+    bindings: [{ route: "/pricing", selector: "[data-price]", fact: "missing" }],
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.path === "$.routes[0]"));
+  assert.ok(result.issues.some((issue) => issue.path === "$.bindings[0].fact"));
+});
+
+test("rejects credential-bearing origins and misspelled settings", () => {
+  const result = validateConfig({ siteUrl: "https://user:pass@example.com", routs: [] });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.path === "$.siteUrl"));
+  assert.ok(result.issues.some((issue) => issue.path === "$.routs"));
+});
