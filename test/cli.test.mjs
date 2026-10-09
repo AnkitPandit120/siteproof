@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -10,6 +11,18 @@ const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 
 function run(args, cwd = process.cwd()) {
   return spawnSync(process.execPath, [cli, ...args], { cwd, encoding: "utf8" });
+}
+
+function runAsync(args, cwd = process.cwd()) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cli, ...args], { cwd });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
+    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
 }
 
 test("CLI reports its version", () => {
@@ -56,6 +69,29 @@ test("CLI reports configuration errors with their location", () => {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /\$\.routs: Unknown setting/);
   } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("CLI collects configured and sitemap URLs from a local site", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/sitemap.xml") {
+      response.setHeader("content-type", "application/xml");
+      response.end(`<urlset><url><loc>http://127.0.0.1:${server.address().port}/blog</loc></url></urlset>`);
+    } else {
+      response.writeHead(404).end();
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({ siteUrl, pages: ["/pricing"] }));
+    const result = await runAsync(["collect"], cwd);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), [`${siteUrl}/`, `${siteUrl}/pricing`, `${siteUrl}/blog`]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
     rmSync(cwd, { recursive: true, force: true });
   }
 });

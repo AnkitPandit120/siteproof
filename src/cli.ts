@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { validateConfig, version } from "./index.js";
+import { collectUrls, validateConfig, version } from "./index.js";
+import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
 const help = `Siteproof ${version}
@@ -9,6 +10,7 @@ const help = `Siteproof ${version}
 Usage:
   siteproof init --url <site origin>
   siteproof config validate [config file]
+  siteproof collect [config file]
   siteproof --version
   siteproof --help
 
@@ -43,26 +45,45 @@ async function init(args: string[]): Promise<number> {
   }
 }
 
+async function loadConfig(path: string): Promise<SiteproofConfig | undefined> {
+  let input: unknown;
+  try {
+    input = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    console.error(`Could not read JSON config at ${path}: ${(error as Error).message}`);
+    return;
+  }
+  const result = validateConfig(input);
+  if (!result.ok) {
+    printIssues(result.issues);
+    return;
+  }
+  return result.config;
+}
+
 async function validateFile(args: string[]): Promise<number> {
   if (args.length > 1) {
     console.error("Usage: siteproof config validate [config file]");
     return 2;
   }
   const path = resolve(args[0] ?? defaultConfig);
-  let input: unknown;
-  try {
-    input = JSON.parse(await readFile(path, "utf8"));
-  } catch (error) {
-    console.error(`Could not read JSON config at ${path}: ${(error as Error).message}`);
-    return 1;
-  }
-  const result = validateConfig(input);
-  if (!result.ok) {
-    printIssues(result.issues);
-    return 1;
-  }
+  if (!await loadConfig(path)) return 1;
   console.log(`Valid configuration: ${path}`);
   return 0;
+}
+
+async function collect(args: string[]): Promise<number> {
+  if (args.length > 1) {
+    console.error("Usage: siteproof collect [config file]");
+    return 2;
+  }
+  const config = await loadConfig(resolve(args[0] ?? defaultConfig));
+  if (!config) return 1;
+  const result = await collectUrls(config);
+  for (const url of result.urls) console.log(url);
+  for (const issue of result.issues) console.error(`${issue.source}: ${issue.message}`);
+  if (result.truncated) console.error("Collection was truncated by a configured limit");
+  return result.issues.length || result.truncated ? 1 : 0;
 }
 
 async function main(args: string[]): Promise<number> {
@@ -76,6 +97,7 @@ async function main(args: string[]): Promise<number> {
   }
   if (args[0] === "init") return init(args.slice(1));
   if (args[0] === "config" && args[1] === "validate") return validateFile(args.slice(2));
+  if (args[0] === "collect") return collect(args.slice(1));
 
   console.error(`Unknown command: ${args.join(" ")}`);
   console.error(help);
