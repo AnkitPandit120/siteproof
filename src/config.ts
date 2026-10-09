@@ -22,6 +22,8 @@ export interface FactBinding {
 
 export interface SiteproofConfig {
   siteUrl: string;
+  pages?: string[];
+  sitemapUrl?: string;
   routes?: RouteRule[];
   facts?: Record<string, Fact>;
   bindings?: FactBinding[];
@@ -46,7 +48,7 @@ function validRoute(value: unknown): value is string {
   return typeof value === "string" &&
     value.startsWith("/") &&
     !value.includes("//") &&
-    !/[?#\s]/.test(value) &&
+    !/[?#\s\\]/.test(value) &&
     (!value.includes("*") || (value.endsWith("/**") && value.indexOf("*") === value.length - 2));
 }
 
@@ -67,7 +69,7 @@ export function validateConfig(input: unknown): ValidationResult {
     return { ok: false, issues: [{ path: "$", message: "Configuration must be an object" }] };
   }
 
-  unknownKeys(input, ["siteUrl", "routes", "facts", "bindings"], "$", issues);
+  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings"], "$", issues);
 
   if (typeof input.siteUrl !== "string") {
     issues.push({ path: "$.siteUrl", message: "Must be an HTTP or HTTPS site origin" });
@@ -81,6 +83,26 @@ export function validateConfig(input: unknown): ValidationResult {
     } catch {
       issues.push({ path: "$.siteUrl", message: "Must be a valid HTTP or HTTPS URL" });
     }
+  }
+
+  if (input.pages !== undefined) {
+    if (!Array.isArray(input.pages)) {
+      issues.push({ path: "$.pages", message: "Must be an array of page paths" });
+    } else {
+      input.pages.forEach((page: unknown, index: number) => {
+        if (!validRoute(page) || (typeof page === "string" && page.includes("*"))) {
+          issues.push({ path: `$.pages[${index}]`, message: "Must be a single page path" });
+        }
+      });
+      if (new Set(input.pages).size !== input.pages.length) {
+        issues.push({ path: "$.pages", message: "Must not repeat page paths" });
+      }
+    }
+  }
+
+  if (input.sitemapUrl !== undefined &&
+      (typeof input.sitemapUrl !== "string" || !validRoute(input.sitemapUrl) || input.sitemapUrl.includes("*"))) {
+    issues.push({ path: "$.sitemapUrl", message: "Must be a single sitemap path" });
   }
 
   if (input.routes !== undefined) {
