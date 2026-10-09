@@ -95,3 +95,25 @@ test("CLI collects configured and sitemap URLs from a local site", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI inspects metadata from a local page", async () => {
+  const server = createServer((request, response) => {
+    response.setHeader("content-type", "text/html");
+    response.end("<html><head><title>Local title</title><meta name='description' content='Local description'></head></html>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({ siteUrl }));
+    const result = await runAsync(["inspect", "/about"], cwd);
+    assert.equal(result.status, 0, result.stderr);
+    const page = JSON.parse(result.stdout);
+    assert.equal(page.url, `${siteUrl}/about`);
+    assert.equal(page.title, "Local title");
+    assert.deepEqual(page.descriptions, ["Local description"]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

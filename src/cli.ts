@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { collectUrls, validateConfig, version } from "./index.js";
+import { collectUrls, readPage, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -11,6 +11,7 @@ Usage:
   siteproof init --url <site origin>
   siteproof config validate [config file]
   siteproof collect [config file]
+  siteproof inspect <page path> [config file]
   siteproof --version
   siteproof --help
 
@@ -86,6 +87,19 @@ async function collect(args: string[]): Promise<number> {
   return result.issues.length || result.truncated ? 1 : 0;
 }
 
+async function inspect(args: string[]): Promise<number> {
+  if (args.length < 1 || args.length > 2 || !args[0].startsWith("/") || args[0].startsWith("//")) {
+    console.error("Usage: siteproof inspect <page path> [config file]");
+    return 2;
+  }
+  const config = await loadConfig(resolve(args[1] ?? defaultConfig));
+  if (!config) return 1;
+  const url = new URL(args[0], config.siteUrl);
+  const page = await readPage(url.href, config.siteUrl);
+  console.log(JSON.stringify(page, null, 2));
+  return page.status >= 400 ? 1 : 0;
+}
+
 async function main(args: string[]): Promise<number> {
   if (args.length === 1 && (args[0] === "--version" || args[0] === "-v")) {
     console.log(version);
@@ -98,6 +112,7 @@ async function main(args: string[]): Promise<number> {
   if (args[0] === "init") return init(args.slice(1));
   if (args[0] === "config" && args[1] === "validate") return validateFile(args.slice(2));
   if (args[0] === "collect") return collect(args.slice(1));
+  if (args[0] === "inspect") return inspect(args.slice(1));
 
   console.error(`Unknown command: ${args.join(" ")}`);
   console.error(help);
