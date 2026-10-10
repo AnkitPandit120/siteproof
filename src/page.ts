@@ -5,6 +5,7 @@ export interface PageMetadata {
   status: number;
   contentType: string | null;
   title: string | null;
+  titles: string[];
   descriptions: string[];
   canonicals: string[];
   robots: string[];
@@ -39,6 +40,7 @@ export function extractPageMetadata(
   const $ = load(html);
   const head = $("head");
   const descriptions: string[] = [];
+  const titles = head.find("title").toArray().map((element) => clean($(element).text())).filter((value): value is string => value !== null);
   const canonicals: string[] = [];
   const robots: string[] = [];
   const openGraph: Record<string, string[]> = {};
@@ -73,7 +75,8 @@ export function extractPageMetadata(
     url,
     status,
     contentType,
-    title: clean(head.find("title").first().text()),
+    title: titles[0] ?? null,
+    titles,
     descriptions,
     canonicals,
     robots,
