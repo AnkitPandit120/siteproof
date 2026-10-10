@@ -30,3 +30,14 @@ test("does not call a failed or non-HTML response a missing-title page", () => {
   assert.deepEqual(checkSeoMetadata(failed).map((finding) => finding.code), ["page_not_html"]);
   assert.deepEqual(checkSeoMetadata(nonHtml).map((finding) => finding.code), ["page_not_html"]);
 });
+
+test("checks intended indexability against meta and header directives", () => {
+  const html = '<head><title>Private</title><meta name="robots" content="nofollow, noindex"></head>';
+  const page = extractPageMetadata(html, url);
+  assert.ok(checkSeoMetadata(page).some((finding) => finding.code === "unexpected_noindex"));
+  assert.ok(!checkSeoMetadata(page, { indexable: false }).some((finding) => finding.code === "noindex_missing"));
+
+  const headerPage = extractPageMetadata("<head><title>Private</title></head>", url, 200, "text/html", ["googlebot: noindex"]);
+  assert.ok(!checkSeoMetadata(headerPage, { indexable: false }).some((finding) => finding.code === "noindex_missing"));
+  assert.ok(checkSeoMetadata(extractPageMetadata("<head></head>", url), { indexable: false }).some((finding) => finding.code === "noindex_missing"));
+});

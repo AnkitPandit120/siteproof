@@ -10,6 +10,12 @@ export interface SeoFinding {
 
 export interface SeoCheckOptions {
   required?: RequiredTag[];
+  indexable?: boolean;
+}
+
+function hasDirective(values: string[], directive: string): boolean {
+  return values.some((value) => value.toLowerCase().split(",").some((part) =>
+    part.trim().split(":").at(-1)?.trim().split(/\s+/)[0] === directive));
 }
 
 export function checkSeoMetadata(page: PageMetadata, options: SeoCheckOptions = {}): SeoFinding[] {
@@ -57,6 +63,16 @@ export function checkSeoMetadata(page: PageMetadata, options: SeoCheckOptions = 
       }
       if (canonical.hash) add("canonical_fragment", "warning", "Remove the fragment from the canonical URL", href);
     }
+  }
+
+  const metaNoindex = hasDirective(page.robots, "noindex") || hasDirective(page.robots, "none");
+  const headerNoindex = hasDirective(page.xRobotsTag, "noindex") || hasDirective(page.xRobotsTag, "none");
+  const noindex = metaNoindex || headerNoindex;
+  if (options.indexable !== false && noindex) {
+    add("unexpected_noindex", "error", "Remove the noindex directive from a page intended for search", metaNoindex ? "meta robots" : "X-Robots-Tag");
+  }
+  if (options.indexable === false && !noindex) {
+    add("noindex_missing", "error", "Add a noindex meta tag or X-Robots-Tag header");
   }
 
   return findings;
