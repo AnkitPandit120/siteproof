@@ -9,3 +9,5 @@ export { checkSeoMetadata } from "./checks.js";
 export type { SeoCheckOptions, SeoFinding } from "./checks.js";
 export { checkRobots, parseRobots, readRobots } from "./robots.js";
 export type { RobotsDecision, RobotsGroup, RobotsReadOptions, RobotsResult, RobotsRule } from "./robots.js";
+export { checkSitemapCoverage } from "./coverage.js";
+export type { CoverageFinding, CoverageResult } from "./coverage.js";
