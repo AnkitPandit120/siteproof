@@ -172,3 +172,30 @@ test("CLI explains when robots rules block an indexable page", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI reports sitemap coverage against configured routes", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/sitemap.xml") {
+      response.setHeader("content-type", "application/xml");
+      response.end(`<urlset><url><loc>http://127.0.0.1:${server.address().port}/</loc></url><url><loc>http://127.0.0.1:${server.address().port}/private</loc></url></urlset>`);
+    } else response.writeHead(404).end();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl,
+      pages: ["/pricing"],
+      routes: [{ match: "/private", sitemap: "excluded" }],
+    }));
+    const result = await runAsync(["coverage"], cwd);
+    assert.equal(result.status, 1, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).findings.map((finding) => finding.code), [
+      "required_route_missing", "excluded_route_listed",
+    ]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { checkRobots, checkSeoMetadata, collectUrls, readPage, readRobots, validateConfig, version } from "./index.js";
+import { checkRobots, checkSeoMetadata, checkSitemapCoverage, collectUrls, readPage, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -11,6 +11,7 @@ Usage:
   siteproof init --url <site origin>
   siteproof config validate [config file]
   siteproof collect [config file]
+  siteproof coverage [config file]
   siteproof inspect <page path> [config file]
   siteproof check <page path> [config file]
   siteproof --version
@@ -88,6 +89,19 @@ async function collect(args: string[]): Promise<number> {
   return result.issues.length || result.truncated ? 1 : 0;
 }
 
+async function coverage(args: string[]): Promise<number> {
+  if (args.length > 1) {
+    console.error("Usage: siteproof coverage [config file]");
+    return 2;
+  }
+  const config = await loadConfig(resolve(args[0] ?? defaultConfig));
+  if (!config) return 1;
+  const collection = await collectUrls(config);
+  const result = checkSitemapCoverage(config, collection);
+  console.log(JSON.stringify({ ...result, collectionIssues: collection.issues }, null, 2));
+  return result.findings.some((finding) => finding.severity === "error") || !result.complete ? 1 : 0;
+}
+
 async function inspect(args: string[]): Promise<number> {
   if (args.length < 1 || args.length > 2 || !args[0].startsWith("/") || args[0].startsWith("//")) {
     console.error("Usage: siteproof inspect <page path> [config file]");
@@ -146,6 +160,7 @@ async function main(args: string[]): Promise<number> {
   if (args[0] === "init") return init(args.slice(1));
   if (args[0] === "config" && args[1] === "validate") return validateFile(args.slice(2));
   if (args[0] === "collect") return collect(args.slice(1));
+  if (args[0] === "coverage") return coverage(args.slice(1));
   if (args[0] === "inspect") return inspect(args.slice(1));
   if (args[0] === "check") return check(args.slice(1));
 
