@@ -117,3 +117,29 @@ test("CLI inspects metadata from a local page", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI checks page metadata using the matching route requirements", async () => {
+  const server = createServer((request, response) => {
+    response.setHeader("content-type", "text/html");
+    response.end("<html><head><title>Local title</title></head></html>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl,
+      routes: [{ match: "/title-only", required: ["title"] }],
+    }));
+    const passing = await runAsync(["check", "/title-only"], cwd);
+    assert.equal(passing.status, 0, passing.stderr);
+    assert.deepEqual(JSON.parse(passing.stdout).findings, []);
+
+    const failing = await runAsync(["check", "/other"], cwd);
+    assert.equal(failing.status, 1, failing.stderr);
+    assert.deepEqual(JSON.parse(failing.stdout).findings.map((finding) => finding.code), ["description_missing", "canonical_missing"]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
