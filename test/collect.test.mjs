@@ -28,6 +28,7 @@ test("collects explicit pages and nested sitemap URLs once", async () => {
   assert.deepEqual(requested, [`${origin}/sitemap.xml`, `${origin}/posts.xml`]);
   assert.deepEqual(result.urls, [`${origin}/`, `${origin}/pricing`, `${origin}/search`, `${origin}/blog/a`]);
   assert.deepEqual(result.sitemapUrls, requested);
+  assert.deepEqual(result.sitemapPageUrls, [`${origin}/blog/a`, `${origin}/pricing`]);
   assert.equal(result.truncated, false);
   assert.deepEqual(result.issues, []);
 });
@@ -43,6 +44,7 @@ test("rejects off-site URLs and stops at the page limit", async () => {
 
   assert.deepEqual(result.urls, [`${origin}/`, `${origin}/a`]);
   assert.equal(result.truncated, true);
+  assert.deepEqual(result.sitemapPageUrls, [`${origin}/b`]);
   assert.match(result.issues[0].message, /off-site/);
 });
 

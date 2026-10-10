@@ -9,6 +9,7 @@ export interface CollectionIssue {
 export interface CollectionResult {
   urls: string[];
   sitemapUrls: string[];
+  sitemapPageUrls: string[];
   issues: CollectionIssue[];
   truncated: boolean;
 }
@@ -83,16 +84,23 @@ export async function collectUrls(config: SiteproofConfig, options: CollectionOp
 
   const urls = new Set<string>();
   const sitemapUrls = new Set<string>();
+  const sitemapPageUrls = new Set<string>();
   const issues: CollectionIssue[] = [];
   let truncated = false;
 
-  function addPage(value: string, source: string): void {
+  function addPage(value: string, source: string, fromSitemap = false): void {
     const url = canonicalUrl(value, origin);
     if (!url) {
       issues.push({ source, message: `Skipped an invalid or off-site page URL: ${value}` });
-    } else if (!urls.has(url)) {
-      if (urls.size >= maxPages) truncated = true;
-      else urls.add(url);
+    } else {
+      if (fromSitemap && !sitemapPageUrls.has(url)) {
+        if (sitemapPageUrls.size >= maxPages) truncated = true;
+        else sitemapPageUrls.add(url);
+      }
+      if (!urls.has(url)) {
+        if (urls.size >= maxPages) truncated = true;
+        else urls.add(url);
+      }
     }
   }
 
@@ -106,7 +114,7 @@ export async function collectUrls(config: SiteproofConfig, options: CollectionOp
   const firstSitemap = canonicalUrl(config.sitemapUrl ?? "/sitemap.xml", origin);
   if (!firstSitemap) {
     issues.push({ source: "sitemapUrl", message: "Sitemap URL is invalid or off-site" });
-    return { urls: [...urls], sitemapUrls: [], issues, truncated };
+    return { urls: [...urls], sitemapUrls: [], sitemapPageUrls: [], issues, truncated };
   }
   const queue = [firstSitemap];
   const visited = new Set<string>();
@@ -158,7 +166,7 @@ export async function collectUrls(config: SiteproofConfig, options: CollectionOp
     }
     sitemapUrls.add(sitemap);
     for (const entry of entries(urlset?.url)) {
-      if (typeof entry.loc === "string") addPage(entry.loc, sitemap);
+      if (typeof entry.loc === "string") addPage(entry.loc, sitemap, true);
     }
     for (const entry of entries(index?.sitemap)) {
       if (typeof entry.loc !== "string") continue;
@@ -171,5 +179,5 @@ export async function collectUrls(config: SiteproofConfig, options: CollectionOp
     }
   }
 
-  return { urls: [...urls], sitemapUrls: [...sitemapUrls], issues, truncated };
+  return { urls: [...urls], sitemapUrls: [...sitemapUrls], sitemapPageUrls: [...sitemapPageUrls], issues, truncated };
 }
