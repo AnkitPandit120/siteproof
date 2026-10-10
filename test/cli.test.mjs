@@ -120,6 +120,10 @@ test("CLI inspects metadata from a local page", async () => {
 
 test("CLI checks page metadata using the matching route requirements", async () => {
   const server = createServer((request, response) => {
+    if (request.url === "/robots.txt") {
+      response.writeHead(404).end();
+      return;
+    }
     response.setHeader("content-type", "text/html");
     response.end("<html><head><title>Local title</title></head></html>");
   });
@@ -138,6 +142,31 @@ test("CLI checks page metadata using the matching route requirements", async () 
     const failing = await runAsync(["check", "/other"], cwd);
     assert.equal(failing.status, 1, failing.stderr);
     assert.deepEqual(JSON.parse(failing.stdout).findings.map((finding) => finding.code), ["description_missing", "canonical_missing"]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("CLI explains when robots rules block an indexable page", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/robots.txt") {
+      response.setHeader("content-type", "text/plain");
+      response.end("User-agent: *\nDisallow: /private/\n");
+    } else {
+      response.setHeader("content-type", "text/html");
+      response.end("<head><title>Private page</title><meta name='description' content='Info'><link rel='canonical' href='/private/page'></head>");
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({ siteUrl }));
+    const result = await runAsync(["check", "/private/page"], cwd);
+    assert.equal(result.status, 1, result.stderr);
+    const findings = JSON.parse(result.stdout).findings;
+    assert.ok(findings.some((finding) => finding.code === "robots_blocked" && /line 2/.test(finding.evidence)));
   } finally {
     await new Promise((resolve) => server.close(resolve));
     rmSync(cwd, { recursive: true, force: true });
