@@ -7,3 +7,5 @@ export { extractPageMetadata, readPage } from "./page.js";
 export type { PageMetadata, PageReadOptions } from "./page.js";
 export { checkSeoMetadata } from "./checks.js";
 export type { SeoCheckOptions, SeoFinding } from "./checks.js";
+export { checkRobots, parseRobots, readRobots } from "./robots.js";
+export type { RobotsDecision, RobotsGroup, RobotsReadOptions, RobotsResult, RobotsRule } from "./robots.js";
