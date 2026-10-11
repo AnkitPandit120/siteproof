@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, makeFindingReport, readPage, readRobots, validateConfig, version } from "./index.js";
+import { calculateSeoHealth, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, makeFindingReport, readPage, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -150,7 +150,11 @@ async function check(args: string[]): Promise<number> {
     }
   }
   const report = makeFindingReport(page.url, findings);
-  console.log(JSON.stringify({ ...report, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
+  const seoHealth = calculateSeoHealth(page, findings, {
+    robotsChecked: !robots.error,
+    socialRequired: rule?.required?.includes("ogImage"),
+  });
+  console.log(JSON.stringify({ ...report, seoHealth, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
   return report.summary.errors ? 1 : 0;
 }
 

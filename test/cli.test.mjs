@@ -239,6 +239,8 @@ test("CLI includes social findings and a concise result summary", async () => {
     assert.equal(result.status, 1, result.stderr);
     const report = JSON.parse(result.stdout);
     assert.equal(report.summary.status, "fail");
+    assert.ok(report.seoHealth.score < 100);
+    assert.equal(report.seoHealth.coverage, 95);
     assert.ok(report.findings.some((finding) => finding.code === "og_image_missing" && finding.severity === "error"));
   } finally {
     await new Promise((resolve) => server.close(resolve));
