@@ -16,3 +16,5 @@ export type { StructuredDataFinding, StructuredDataNode, StructuredDataResult } 
 export { checkSocialMetadata } from "./social.js";
 export { makeFindingReport } from "./report.js";
 export type { FindingReport, FindingSummary } from "./report.js";
+export { calculateSeoHealth } from "./score.js";
+export type { ScoreCheck, ScoreOptions, SeoHealthScore } from "./score.js";
