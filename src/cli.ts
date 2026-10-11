@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { checkRobots, checkSeoMetadata, checkSitemapCoverage, checkStructuredData, collectUrls, readPage, readRobots, validateConfig, version } from "./index.js";
+import { checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, makeFindingReport, readPage, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -128,6 +128,7 @@ async function check(args: string[]): Promise<number> {
       path.startsWith(candidate.match.slice(0, -2))).sort((a, b) => b.match.length - a.match.length)[0];
   const page = await readPage(new URL(args[0], config.siteUrl).href, config.siteUrl);
   const findings = checkSeoMetadata(page, { required: rule?.required, indexable: rule?.indexable });
+  findings.push(...checkSocialMetadata(page, rule?.required?.includes("ogImage")));
   const structuredData = checkStructuredData(page);
   for (const finding of structuredData.findings) {
     findings.push({ code: finding.code, severity: finding.severity, message: `JSON-LD block ${finding.block} at ${finding.path}: ${finding.message}` });
@@ -148,8 +149,9 @@ async function check(args: string[]): Promise<number> {
       });
     }
   }
-  console.log(JSON.stringify({ url: page.url, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes }, findings }, null, 2));
-  return findings.some((finding) => finding.severity === "error") ? 1 : 0;
+  const report = makeFindingReport(page.url, findings);
+  console.log(JSON.stringify({ ...report, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
+  return report.summary.errors ? 1 : 0;
 }
 
 async function main(args: string[]): Promise<number> {

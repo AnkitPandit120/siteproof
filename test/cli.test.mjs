@@ -221,3 +221,27 @@ test("CLI shows JSON-LD nodes and identifies invalid blocks", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI includes social findings and a concise result summary", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/robots.txt") return response.writeHead(404).end();
+    response.setHeader("content-type", "text/html");
+    response.end("<head><title>Page</title><meta name='description' content='Page summary'><link rel='canonical' href='/page'><meta property='og:title' content='Page'></head>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl, routes: [{ match: "/page", required: ["title", "description", "canonical", "ogImage"] }],
+    }));
+    const result = await runAsync(["check", "/page"], cwd);
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.summary.status, "fail");
+    assert.ok(report.findings.some((finding) => finding.code === "og_image_missing" && finding.severity === "error"));
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

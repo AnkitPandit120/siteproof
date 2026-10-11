@@ -14,3 +14,5 @@ export type { CoverageFinding, CoverageResult } from "./coverage.js";
 export { checkStructuredData } from "./structured-data.js";
 export type { StructuredDataFinding, StructuredDataNode, StructuredDataResult } from "./structured-data.js";
 export { checkSocialMetadata } from "./social.js";
+export { makeFindingReport } from "./report.js";
+export type { FindingReport, FindingSummary } from "./report.js";
