@@ -199,3 +199,25 @@ test("CLI reports sitemap coverage against configured routes", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI shows JSON-LD nodes and identifies invalid blocks", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/robots.txt") return response.writeHead(404).end();
+    response.setHeader("content-type", "text/html");
+    response.end("<head><title>Article</title><meta name='description' content='Article'><link rel='canonical' href='https://example.com/article'><script type='application/ld+json'>{\"@context\":\"https://schema.org\",\"@type\":\"Article\"}</script><script type='application/ld+json'>{broken</script></head>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({ siteUrl }));
+    const result = await runAsync(["check", "/article"], cwd);
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(report.structuredData.nodes[0].types, ["Article"]);
+    assert.ok(report.findings.some((finding) => finding.code === "json_ld_invalid_json" && /block 2/.test(finding.message)));
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
