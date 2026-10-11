@@ -13,3 +13,4 @@ export { checkSitemapCoverage } from "./coverage.js";
 export type { CoverageFinding, CoverageResult } from "./coverage.js";
 export { checkStructuredData } from "./structured-data.js";
 export type { StructuredDataFinding, StructuredDataNode, StructuredDataResult } from "./structured-data.js";
+export { checkSocialMetadata } from "./social.js";
