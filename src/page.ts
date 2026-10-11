@@ -67,8 +67,7 @@ export function extractPageMetadata(
 
   $("script[type]").each((_, element) => {
     if ($(element).attr("type")?.trim().toLowerCase() !== "application/ld+json") return;
-    const data = $(element).html()?.trim();
-    if (data) jsonLd.push(data);
+    jsonLd.push($(element).html()?.trim() ?? "");
   });
 
   return {

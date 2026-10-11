@@ -11,3 +11,5 @@ export { checkRobots, parseRobots, readRobots } from "./robots.js";
 export type { RobotsDecision, RobotsGroup, RobotsReadOptions, RobotsResult, RobotsRule } from "./robots.js";
 export { checkSitemapCoverage } from "./coverage.js";
 export type { CoverageFinding, CoverageResult } from "./coverage.js";
+export { checkStructuredData } from "./structured-data.js";
+export type { StructuredDataFinding, StructuredDataNode, StructuredDataResult } from "./structured-data.js";
