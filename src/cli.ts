@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { calculateSeoHealth, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, makeFindingReport, readPage, readRobots, validateConfig, version } from "./index.js";
+import { calculateSeoHealth, checkFactBindings, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, makeFindingReport, readPage, readPageDocument, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -126,9 +126,19 @@ async function check(args: string[]): Promise<number> {
   const rule = config.routes?.find((candidate) => candidate.match === path) ??
     config.routes?.filter((candidate) => candidate.match.endsWith("/**") &&
       path.startsWith(candidate.match.slice(0, -2))).sort((a, b) => b.match.length - a.match.length)[0];
-  const page = await readPage(new URL(args[0], config.siteUrl).href, config.siteUrl);
+  const document = await readPageDocument(new URL(args[0], config.siteUrl).href, config.siteUrl);
+  const page = document.metadata;
   const findings = checkSeoMetadata(page, { required: rule?.required, indexable: rule?.indexable });
   findings.push(...checkSocialMetadata(page, rule?.required?.includes("ogImage")));
+  const facts = checkFactBindings(document.html, page.url, config);
+  for (const finding of facts.findings) {
+    findings.push({
+      code: finding.code,
+      severity: finding.severity,
+      message: `${finding.fact} at ${finding.selector}: ${finding.message}`,
+      evidence: finding.observed === undefined ? finding.expected : `Expected ${finding.expected}; found ${finding.observed}`,
+    });
+  }
   const structuredData = checkStructuredData(page);
   for (const finding of structuredData.findings) {
     findings.push({ code: finding.code, severity: finding.severity, message: `JSON-LD block ${finding.block} at ${finding.path}: ${finding.message}` });
@@ -154,7 +164,7 @@ async function check(args: string[]): Promise<number> {
     robotsChecked: !robots.error,
     socialRequired: rule?.required?.includes("ogImage"),
   });
-  console.log(JSON.stringify({ ...report, seoHealth, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
+  console.log(JSON.stringify({ ...report, seoHealth, facts, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
   return report.summary.errors ? 1 : 0;
 }
 

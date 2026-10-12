@@ -247,3 +247,29 @@ test("CLI includes social findings and a concise result summary", async () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test("CLI compares a bound trusted fact with page text", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/robots.txt") return response.writeHead(404).end();
+    response.setHeader("content-type", "text/html");
+    response.end("<head><title>Pricing</title><meta name='description' content='Plans'><link rel='canonical' href='/pricing'></head><body><p data-price>₹599/month</p></body>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl,
+      facts: { proPrice: { value: 499, currency: "INR", billingPeriod: "month" } },
+      bindings: [{ route: "/pricing", selector: "[data-price]", fact: "proPrice" }],
+    }));
+    const result = await runAsync(["check", "/pricing"], cwd);
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.facts.bindings[0].status, "fail");
+    assert.ok(report.findings.some((finding) => finding.code === "fact_value_mismatch" && /499/.test(finding.evidence)));
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
