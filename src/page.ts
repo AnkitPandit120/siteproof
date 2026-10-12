@@ -21,6 +21,11 @@ export interface PageReadOptions {
   maxBytes?: number;
 }
 
+export interface PageDocument {
+  metadata: PageMetadata;
+  html: string;
+}
+
 function clean(value: string | undefined): string | null {
   const text = value?.replace(/\s+/g, " ").trim();
   return text || null;
@@ -111,7 +116,7 @@ async function readBounded(response: Response, maxBytes: number): Promise<string
   return new TextDecoder().decode(bytes);
 }
 
-export async function readPage(url: string, siteUrl: string, options: PageReadOptions = {}): Promise<PageMetadata> {
+export async function readPageDocument(url: string, siteUrl: string, options: PageReadOptions = {}): Promise<PageDocument> {
   const target = new URL(url);
   if (target.origin !== new URL(siteUrl).origin || !["http:", "https:"].includes(target.protocol)) {
     throw new Error(`Page URL is off-site or unsupported: ${url}`);
@@ -129,8 +134,12 @@ export async function readPage(url: string, siteUrl: string, options: PageReadOp
   const contentType = response.headers.get("content-type");
   const xRobotsTag = response.headers.get("x-robots-tag")?.split(",").map((part) => part.trim()).filter(Boolean) ?? [];
   if (!response.ok || !contentType?.toLowerCase().includes("text/html")) {
-    return extractPageMetadata("", target.href, response.status, contentType, xRobotsTag);
+    return { metadata: extractPageMetadata("", target.href, response.status, contentType, xRobotsTag), html: "" };
   }
   const html = await readBounded(response, maxBytes);
-  return extractPageMetadata(html, target.href, response.status, contentType, xRobotsTag);
+  return { metadata: extractPageMetadata(html, target.href, response.status, contentType, xRobotsTag), html };
+}
+
+export async function readPage(url: string, siteUrl: string, options: PageReadOptions = {}): Promise<PageMetadata> {
+  return (await readPageDocument(url, siteUrl, options)).metadata;
 }

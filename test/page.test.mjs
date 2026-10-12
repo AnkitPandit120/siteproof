@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { extractPageMetadata, readPage } from "../dist/index.js";
+import { extractPageMetadata, readPage, readPageDocument } from "../dist/index.js";
 
 const fixture = readFileSync(new URL("./fixtures/article.html", import.meta.url), "utf8");
 
@@ -28,6 +28,14 @@ test("reads a page and keeps response status and X-Robots-Tag", async () => {
   assert.equal(page.status, 200);
   assert.deepEqual(page.xRobotsTag, ["noindex", "nofollow"]);
   assert.equal(page.title, "An article & its metadata");
+});
+
+test("can return bounded HTML with metadata for fact checks", async () => {
+  const document = await readPageDocument("https://example.com/article", "https://example.com", {
+    fetcher: async () => new Response(fixture, { headers: { "content-type": "text/html" } }),
+  });
+  assert.equal(document.html, fixture);
+  assert.equal(document.metadata.title, "An article & its metadata");
 });
 
 test("rejects off-site URLs and cross-origin redirects", async () => {
