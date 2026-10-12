@@ -12,6 +12,7 @@ export interface Fact {
   value: string | number | boolean;
   currency?: string;
   billingPeriod?: "month" | "year";
+  unit?: string;
 }
 
 export interface FactBinding {
@@ -156,7 +157,7 @@ export function validateConfig(input: unknown): ValidationResult {
           issues.push({ path, message: "Must be an object with a value" });
           continue;
         }
-        unknownKeys(fact, ["value", "currency", "billingPeriod"], path, issues);
+        unknownKeys(fact, ["value", "currency", "billingPeriod", "unit"], path, issues);
         if (!["string", "number", "boolean"].includes(typeof fact.value) ||
             (typeof fact.value === "number" && !Number.isFinite(fact.value))) {
           issues.push({ path: `${path}.value`, message: "Must be a string, finite number, or boolean" });
@@ -167,6 +168,10 @@ export function validateConfig(input: unknown): ValidationResult {
         }
         if (fact.billingPeriod !== undefined && !["month", "year"].includes(String(fact.billingPeriod))) {
           issues.push({ path: `${path}.billingPeriod`, message: "Must be month or year" });
+        }
+        if (fact.unit !== undefined &&
+            (typeof fact.unit !== "string" || !/^[\p{L}][\p{L}\p{N} -]{0,49}$/u.test(fact.unit.trim()) || typeof fact.value !== "number" || fact.currency !== undefined)) {
+          issues.push({ path: `${path}.unit`, message: "Must be a short unit on a numeric non-currency fact" });
         }
       }
     }

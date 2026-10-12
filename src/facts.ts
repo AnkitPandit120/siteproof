@@ -2,7 +2,7 @@ import { load } from "cheerio";
 import type { Fact, SiteproofConfig } from "./config.js";
 
 export interface FactFinding {
-  code: "fact_selector_invalid" | "fact_selector_missing" | "fact_selector_multiple" | "fact_value_mismatch" | "fact_page_unavailable";
+  code: "fact_selector_invalid" | "fact_selector_missing" | "fact_selector_multiple" | "fact_value_mismatch" | "fact_value_ambiguous" | "fact_page_unavailable";
   severity: "error" | "warning";
   fact: string;
   selector: string;
@@ -28,22 +28,29 @@ function normalized(value: string): string {
 }
 
 function expectedText(fact: Fact): string {
-  return [String(fact.value), fact.currency, fact.billingPeriod ? `per ${fact.billingPeriod}` : undefined].filter(Boolean).join(" ");
+  return [String(fact.value), fact.currency, fact.unit, fact.billingPeriod ? `per ${fact.billingPeriod}` : undefined].filter(Boolean).join(" ");
 }
 
-function matchesFact(observed: string, fact: Fact): boolean {
-  if (typeof fact.value !== "number") return observed === String(fact.value);
+function compareFact(observed: string, fact: Fact): "match" | "mismatch" | "ambiguous" {
+  if (typeof fact.value !== "number") return observed === String(fact.value) ? "match" : "mismatch";
   const values = observed.match(/-?\d[\d,]*(?:\.\d+)?/g) ?? [];
-  if (!values.some((value) => Number(value.replaceAll(",", "")) === fact.value)) return false;
+  if (values.length > 1) return "ambiguous";
+  if (values.length !== 1 || Number(values[0].replaceAll(",", "")) !== fact.value) return "mismatch";
   if (fact.currency) {
     const symbols: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
-    if (!observed.includes(fact.currency) && !(symbols[fact.currency] && observed.includes(symbols[fact.currency]))) return false;
+    if (!observed.includes(fact.currency) && !(symbols[fact.currency] && observed.includes(symbols[fact.currency]))) return "mismatch";
   }
   if (fact.billingPeriod) {
     const period = fact.billingPeriod === "month" ? /(?:\/\s*(?:mo|month)|per\s+month|monthly)/i : /(?:\/\s*(?:yr|year)|per\s+year|yearly|annually)/i;
-    if (!period.test(observed)) return false;
+    if (!period.test(observed)) return "mismatch";
   }
-  return true;
+  if (fact.unit) {
+    const unit = fact.unit.toLowerCase().trim();
+    const actual = observed.toLowerCase();
+    const variants = unit.endsWith("s") ? [unit, unit.slice(0, -1)] : [unit, `${unit}s`];
+    if (!variants.some((variant) => new RegExp(`(^|[^\\p{L}\\p{N}])${variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}\\p{N}])`, "u").test(actual))) return "mismatch";
+  }
+  return "match";
 }
 
 export function checkFactBindings(html: string, pageUrl: string, config: SiteproofConfig): FactCheckResult {
@@ -81,9 +88,10 @@ export function checkFactBindings(html: string, pageUrl: string, config: Sitepro
       continue;
     }
     const observed = normalized(elements.text());
-    if (!matchesFact(observed, fact)) {
+    const comparison = compareFact(observed, fact);
+    if (comparison !== "match") {
       bindings.push({ ...base, status: "fail", observed });
-      findings.push({ ...base, code: "fact_value_mismatch", severity: "error", message: "Visible page fact differs from the configured fact", expected: expectedText(fact), observed });
+      findings.push({ ...base, code: comparison === "ambiguous" ? "fact_value_ambiguous" : "fact_value_mismatch", severity: "error", message: comparison === "ambiguous" ? "Selected text contains multiple numbers; bind the fact to one value" : "Visible page fact differs from the configured fact", expected: expectedText(fact), observed });
     } else {
       bindings.push({ ...base, status: "pass", observed });
     }

@@ -35,3 +35,16 @@ test("marks unavailable HTML as unverified", () => {
   assert.ok(result.bindings.every((binding) => binding.status === "not_checked"));
   assert.ok(result.findings.every((finding) => finding.code === "fact_page_unavailable"));
 });
+
+test("checks plan limits and rejects price text with competing numbers", () => {
+  const withLimit = {
+    ...config,
+    facts: { ...config.facts, projects: { value: 10, unit: "projects" } },
+    bindings: [{ route: "/pricing", selector: "[data-limit]", fact: "projects" }],
+  };
+  assert.equal(checkFactBindings("<p data-limit>Up to 10 projects</p>", "https://example.com/pricing", withLimit).bindings[0].status, "pass");
+  assert.equal(checkFactBindings("<p data-limit>10 users</p>", "https://example.com/pricing", withLimit).findings[0].code, "fact_value_mismatch");
+  assert.equal(checkFactBindings("<p data-limit>10 superprojects</p>", "https://example.com/pricing", withLimit).findings[0].code, "fact_value_mismatch");
+  const ambiguous = checkFactBindings("<p data-price>₹599 today, ₹499 previously</p><h1>Siteproof Pro</h1>", "https://example.com/pricing", config);
+  assert.equal(ambiguous.findings[0].code, "fact_value_ambiguous");
+});

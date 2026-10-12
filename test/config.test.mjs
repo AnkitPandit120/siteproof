@@ -35,3 +35,11 @@ test("rejects credential-bearing origins and misspelled settings", () => {
   assert.ok(result.issues.some((issue) => issue.path === "$.siteUrl"));
   assert.ok(result.issues.some((issue) => issue.path === "$.routs"));
 });
+
+test("accepts numeric plan limits with units and rejects units on prices", () => {
+  const valid = { siteUrl: "https://example.com", facts: { projects: { value: 10, unit: "projects" } } };
+  assert.equal(validateConfig(valid).ok, true);
+  const invalid = validateConfig({ siteUrl: "https://example.com", facts: { price: { value: 499, currency: "INR", unit: "projects" } } });
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.issues.some((issue) => issue.path === "$.facts.price.unit"));
+});
