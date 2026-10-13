@@ -20,3 +20,5 @@ export { calculateSeoHealth } from "./score.js";
 export type { ScoreCheck, ScoreOptions, SeoHealthScore } from "./score.js";
 export { checkFactBindings } from "./facts.js";
 export type { FactBindingResult, FactCheckResult, FactFinding } from "./facts.js";
+export { generateSitemap } from "./generate-sitemap.js";
+export type { GeneratedSitemap } from "./generate-sitemap.js";
