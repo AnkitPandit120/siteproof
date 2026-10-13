@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { calculateSeoHealth, checkFactBindings, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, generateRobots, generateSitemap, makeFindingReport, readPage, readPageDocument, readRobots, validateConfig, version } from "./index.js";
+import { calculateSeoHealth, checkFactBindings, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, generateRobots, generateSitemap, makeFindingReport, previewJsonLd, readPage, readPageDocument, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -14,6 +15,8 @@ Usage:
   siteproof coverage [config file]
   siteproof sitemap generate [config file]
   siteproof robots generate [config file]
+  siteproof jsonld preview <page path> [config file]
+  siteproof jsonld write <page path> <output file> --reviewed <preview hash> [config file]
   siteproof inspect <page path> [config file]
   siteproof check <page path> [config file]
   siteproof --version
@@ -130,6 +133,48 @@ async function robotsGenerate(args: string[]): Promise<number> {
   return 0;
 }
 
+async function jsonLdGenerate(args: string[], write: boolean): Promise<number> {
+  const valid = write ? args.length >= 4 && args.length <= 5 && args[2] === "--reviewed" && /^[a-f0-9]{64}$/.test(args[3]) : args.length >= 1 && args.length <= 2;
+  if (!valid || !/^\/(?!\/)[^?#]*$/.test(args[0])) {
+    console.error(write ? "Usage: siteproof jsonld write <page path> <output file> --reviewed <preview hash> [config file]" : "Usage: siteproof jsonld preview <page path> [config file]");
+    return 2;
+  }
+  const config = await loadConfig(resolve((write ? args[4] : args[1]) ?? defaultConfig));
+  if (!config) return 1;
+  const url = new URL(args[0], config.siteUrl);
+  const document = await readPageDocument(url.href, config.siteUrl);
+  if (document.metadata.status >= 400 || !document.html) {
+    console.error(`Cannot verify visible facts on ${url.href}`);
+    return 1;
+  }
+  const preview = previewJsonLd(document.html, url.pathname, config);
+  if (preview.errors.length) {
+    for (const error of preview.errors) console.error(error);
+    return 1;
+  }
+  const hash = createHash("sha256").update(preview.json!).digest("hex");
+  if (write) {
+    if (hash !== args[3]) {
+      console.error("The page or generated JSON-LD changed since preview. Preview it again before writing.");
+      return 1;
+    }
+    try {
+      await writeFile(resolve(args[1]), preview.json!, { flag: "wx" });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        console.error(`Output file already exists: ${args[1]}`);
+        return 1;
+      }
+      throw error;
+    }
+    console.log(`Wrote reviewed JSON-LD to ${args[1]}`);
+  } else {
+    process.stdout.write(preview.json!);
+    console.error(`Preview only. Verified facts: ${preview.verifiedFacts.join(", ")}. Preview hash: ${hash}`);
+  }
+  return 0;
+}
+
 async function inspect(args: string[]): Promise<number> {
   if (args.length < 1 || args.length > 2 || !args[0].startsWith("/") || args[0].startsWith("//")) {
     console.error("Usage: siteproof inspect <page path> [config file]");
@@ -211,6 +256,8 @@ async function main(args: string[]): Promise<number> {
   if (args[0] === "coverage") return coverage(args.slice(1));
   if (args[0] === "sitemap" && args[1] === "generate") return sitemapGenerate(args.slice(2));
   if (args[0] === "robots" && args[1] === "generate") return robotsGenerate(args.slice(2));
+  if (args[0] === "jsonld" && args[1] === "preview") return jsonLdGenerate(args.slice(2), false);
+  if (args[0] === "jsonld" && args[1] === "write") return jsonLdGenerate(args.slice(2), true);
   if (args[0] === "inspect") return inspect(args.slice(1));
   if (args[0] === "check") return check(args.slice(1));
 

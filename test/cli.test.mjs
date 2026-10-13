@@ -73,6 +73,39 @@ test("CLI reports configuration errors with their location", () => {
   }
 });
 
+test("CLI previews JSON-LD from a verified live page without writing a file", async () => {
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "text/html");
+    response.end("<h1>Siteproof Pro</h1>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl: `http://127.0.0.1:${server.address().port}`,
+      facts: { product: { value: "Siteproof Pro" } },
+      bindings: [{ route: "/pricing", selector: "h1", fact: "product" }],
+      jsonLdTemplates: [{ route: "/pricing", type: "Product", properties: { name: "product" } }],
+    }));
+    const result = await runAsync(["jsonld", "preview", "/pricing"], cwd);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).name, "Siteproof Pro");
+    assert.match(result.stderr, /Preview only/);
+    assert.deepEqual((await import("node:fs")).readdirSync(cwd), ["siteproof.config.json"]);
+    const hash = result.stderr.match(/Preview hash: ([a-f0-9]{64})/)[1];
+    const wrong = await runAsync(["jsonld", "write", "/pricing", "schema.json", "--reviewed", "0".repeat(64)], cwd);
+    assert.equal(wrong.status, 1);
+    const written = await runAsync(["jsonld", "write", "/pricing", "schema.json", "--reviewed", hash], cwd);
+    assert.equal(written.status, 0, written.stderr);
+    assert.equal(readFileSync(join(cwd, "schema.json"), "utf8"), result.stdout);
+    const repeated = await runAsync(["jsonld", "write", "/pricing", "schema.json", "--reviewed", hash], cwd);
+    assert.equal(repeated.status, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("CLI collects configured and sitemap URLs from a local site", async () => {
   const server = createServer((request, response) => {
     if (request.url === "/sitemap.xml") {
