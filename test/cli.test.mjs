@@ -200,6 +200,23 @@ test("CLI reports sitemap coverage against configured routes", async () => {
   }
 });
 
+test("CLI generates sitemap XML from configured pages", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl: "https://example.com", pages: ["/pricing"],
+      routes: [{ match: "/private", indexable: false }, { match: "/blog/**" }],
+    }));
+    const result = run(["sitemap", "generate"], cwd);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /https:\/\/example.com\/pricing/);
+    assert.doesNotMatch(result.stdout, /private/);
+    assert.match(result.stderr, /Wildcard routes need explicit page paths/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("CLI shows JSON-LD nodes and identifies invalid blocks", async () => {
   const server = createServer((request, response) => {
     if (request.url === "/robots.txt") return response.writeHead(404).end();
