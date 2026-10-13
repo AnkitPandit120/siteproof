@@ -21,6 +21,12 @@ export interface FactBinding {
   fact: string;
 }
 
+export interface JsonLdTemplate {
+  route: string;
+  type: string;
+  properties: Record<string, string>;
+}
+
 export interface RobotsConfigGroup {
   userAgents: string[];
   allow?: string[];
@@ -34,6 +40,7 @@ export interface SiteproofConfig {
   routes?: RouteRule[];
   facts?: Record<string, Fact>;
   bindings?: FactBinding[];
+  jsonLdTemplates?: JsonLdTemplate[];
   robotsRules?: RobotsConfigGroup[];
 }
 
@@ -77,7 +84,7 @@ export function validateConfig(input: unknown): ValidationResult {
     return { ok: false, issues: [{ path: "$", message: "Configuration must be an object" }] };
   }
 
-  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings", "robotsRules"], "$", issues);
+  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings", "robotsRules", "jsonLdTemplates"], "$", issues);
 
   if (typeof input.siteUrl !== "string") {
     issues.push({ path: "$.siteUrl", message: "Must be an HTTP or HTTPS site origin" });
@@ -229,6 +236,37 @@ export function validateConfig(input: unknown): ValidationResult {
               (!Array.isArray(group[field]) || group[field].some((rule: unknown) =>
                 typeof rule !== "string" || !rule.startsWith("/") || /[\r\n#]/.test(rule)))) {
             issues.push({ path: `${path}.${field}`, message: "Must list path rules starting with /" });
+          }
+        }
+      });
+    }
+  }
+
+  if (input.jsonLdTemplates !== undefined) {
+    if (!Array.isArray(input.jsonLdTemplates)) {
+      issues.push({ path: "$.jsonLdTemplates", message: "Must be an array" });
+    } else {
+      input.jsonLdTemplates.forEach((template: unknown, index: number) => {
+        const path = `$.jsonLdTemplates[${index}]`;
+        if (!isRecord(template)) {
+          issues.push({ path, message: "Must be an object" });
+          return;
+        }
+        unknownKeys(template, ["route", "type", "properties"], path, issues);
+        if (!validRoute(template.route) || (typeof template.route === "string" && template.route.includes("*")))
+          issues.push({ path: `${path}.route`, message: "Must be a single page path" });
+        if (typeof template.type !== "string" || !/^[A-Za-z][A-Za-z0-9]*$/.test(template.type))
+          issues.push({ path: `${path}.type`, message: "Must be a schema.org type name" });
+        if (!isRecord(template.properties) || !Object.keys(template.properties).length) {
+          issues.push({ path: `${path}.properties`, message: "Map at least one schema property to a fact" });
+        } else {
+          for (const [property, fact] of Object.entries(template.properties)) {
+            if (!/^[A-Za-z][A-Za-z0-9]*$/.test(property) || ["constructor", "prototype"].includes(property))
+              issues.push({ path: `${path}.properties.${property}`, message: "Must be a simple schema property name" });
+            if (typeof fact !== "string" || !isRecord(input.facts) || !(fact in input.facts) ||
+                !Array.isArray(input.bindings) || !input.bindings.some((binding: unknown) =>
+                  isRecord(binding) && binding.route === template.route && binding.fact === fact))
+              issues.push({ path: `${path}.properties.${property}`, message: "Must name a fact bound to this route" });
           }
         }
       });

@@ -1,6 +1,6 @@
 export const version = "0.0.0";
 export { validateConfig } from "./config.js";
-export type { Fact, FactBinding, RequiredTag, RobotsConfigGroup, RouteRule, SiteproofConfig, SitemapSetting, ValidationIssue, ValidationResult } from "./config.js";
+export type { Fact, FactBinding, JsonLdTemplate, RequiredTag, RobotsConfigGroup, RouteRule, SiteproofConfig, SitemapSetting, ValidationIssue, ValidationResult } from "./config.js";
 export { collectUrls } from "./collect.js";
 export type { CollectionIssue, CollectionOptions, CollectionResult } from "./collect.js";
 export { extractPageMetadata, readPage, readPageDocument } from "./page.js";
@@ -23,3 +23,5 @@ export type { FactBindingResult, FactCheckResult, FactFinding } from "./facts.js
 export { generateSitemap } from "./generate-sitemap.js";
 export type { GeneratedSitemap } from "./generate-sitemap.js";
 export { generateRobots } from "./generate-robots.js";
+export { previewJsonLd } from "./generate-jsonld.js";
+export type { JsonLdPreview } from "./generate-jsonld.js";
