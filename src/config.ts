@@ -21,6 +21,12 @@ export interface FactBinding {
   fact: string;
 }
 
+export interface RobotsConfigGroup {
+  userAgents: string[];
+  allow?: string[];
+  disallow?: string[];
+}
+
 export interface SiteproofConfig {
   siteUrl: string;
   pages?: string[];
@@ -28,6 +34,7 @@ export interface SiteproofConfig {
   routes?: RouteRule[];
   facts?: Record<string, Fact>;
   bindings?: FactBinding[];
+  robotsRules?: RobotsConfigGroup[];
 }
 
 export interface ValidationIssue {
@@ -70,7 +77,7 @@ export function validateConfig(input: unknown): ValidationResult {
     return { ok: false, issues: [{ path: "$", message: "Configuration must be an object" }] };
   }
 
-  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings"], "$", issues);
+  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings", "robotsRules"], "$", issues);
 
   if (typeof input.siteUrl !== "string") {
     issues.push({ path: "$.siteUrl", message: "Must be an HTTP or HTTPS site origin" });
@@ -197,6 +204,32 @@ export function validateConfig(input: unknown): ValidationResult {
         if (typeof binding.fact !== "string" || !binding.fact.trim() ||
             !isRecord(input.facts) || !(binding.fact in input.facts)) {
           issues.push({ path: `${path}.fact`, message: "Must name a configured fact" });
+        }
+      });
+    }
+  }
+
+  if (input.robotsRules !== undefined) {
+    if (!Array.isArray(input.robotsRules)) {
+      issues.push({ path: "$.robotsRules", message: "Must be an array of crawler rule groups" });
+    } else {
+      input.robotsRules.forEach((group: unknown, index: number) => {
+        const path = `$.robotsRules[${index}]`;
+        if (!isRecord(group)) {
+          issues.push({ path, message: "Must be an object" });
+          return;
+        }
+        unknownKeys(group, ["userAgents", "allow", "disallow"], path, issues);
+        if (!Array.isArray(group.userAgents) || !group.userAgents.length ||
+            group.userAgents.some((agent: unknown) => typeof agent !== "string" || !/^(?:\*|[A-Za-z][A-Za-z0-9_-]{0,99})$/.test(agent))) {
+          issues.push({ path: `${path}.userAgents`, message: "List one or more valid crawler names" });
+        }
+        for (const field of ["allow", "disallow"] as const) {
+          if (group[field] !== undefined &&
+              (!Array.isArray(group[field]) || group[field].some((rule: unknown) =>
+                typeof rule !== "string" || !rule.startsWith("/") || /[\r\n#]/.test(rule)))) {
+            issues.push({ path: `${path}.${field}`, message: "Must list path rules starting with /" });
+          }
         }
       });
     }
