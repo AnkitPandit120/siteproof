@@ -217,6 +217,21 @@ test("CLI generates sitemap XML from configured pages", () => {
   }
 });
 
+test("CLI generates robots rules from explicit configuration", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({
+      siteUrl: "https://example.com", robotsRules: [{ userAgents: ["Googlebot"], disallow: ["/search/"] }],
+    }));
+    const result = run(["robots", "generate"], cwd);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /User-agent: Googlebot\nDisallow: \/search\//);
+    assert.match(result.stdout, /Sitemap: https:\/\/example.com\/sitemap.xml/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("CLI shows JSON-LD nodes and identifies invalid blocks", async () => {
   const server = createServer((request, response) => {
     if (request.url === "/robots.txt") return response.writeHead(404).end();
