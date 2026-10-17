@@ -54,11 +54,21 @@ export function parseRobots(text: string): RobotsGroup[] {
 }
 
 function matchingLength(pattern: string, path: string): number {
+  if (pattern.length > 2048) return -1;
   const anchored = pattern.endsWith("$");
   const plain = anchored ? pattern.slice(0, -1) : pattern;
-  const escaped = plain.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-  const regex = new RegExp(`^${escaped}${anchored ? "$" : ""}`);
-  return regex.test(path) ? plain.replaceAll("*", "").length : -1;
+  const parts = plain.split("*");
+  if (!path.startsWith(parts[0])) return -1;
+  let offset = parts[0].length;
+  for (let index = 1; index < parts.length; index++) {
+    const part = parts[index];
+    const found = path.indexOf(part, offset);
+    if (found < 0) return -1;
+    offset = found + part.length;
+  }
+  if (anchored && parts.length === 1 && offset !== path.length) return -1;
+  if (anchored && parts.length > 1 && !path.endsWith(parts.at(-1)!)) return -1;
+  return plain.replaceAll("*", "").length;
 }
 
 export function checkRobots(groups: RobotsGroup[], userAgent: string, pageUrl: string): RobotsDecision {

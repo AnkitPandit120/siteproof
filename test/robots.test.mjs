@@ -21,6 +21,11 @@ test("matches wildcards, end anchors, and allow ties", () => {
   assert.equal(checkRobots(groups, "Googlebot", "https://example.com/sale").allowed, true);
 });
 
+test("ignores oversized wildcard patterns without compiling them as regular expressions", () => {
+  const groups = parseRobots(`User-agent: *\nDisallow: /${"*a".repeat(2000)}$\n`);
+  assert.equal(checkRobots(groups, "Googlebot", "https://example.com/aaaa").allowed, true);
+});
+
 test("treats missing robots files as open and reports server or size errors", async () => {
   const missing = await readRobots("https://example.com", { fetcher: async () => new Response(null, { status: 404 }) });
   assert.deepEqual(missing.groups, []);

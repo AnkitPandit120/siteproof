@@ -118,7 +118,7 @@ async function readBounded(response: Response, maxBytes: number): Promise<string
 
 export async function readPageDocument(url: string, siteUrl: string, options: PageReadOptions = {}): Promise<PageDocument> {
   const target = new URL(url);
-  if (target.origin !== new URL(siteUrl).origin || !["http:", "https:"].includes(target.protocol)) {
+  if (target.origin !== new URL(siteUrl).origin || target.username || target.password || !["http:", "https:"].includes(target.protocol)) {
     throw new Error(`Page URL is off-site or unsupported: ${url}`);
   }
   const timeoutMs = options.timeoutMs ?? 8_000;

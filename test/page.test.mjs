@@ -40,6 +40,7 @@ test("can return bounded HTML with metadata for fact checks", async () => {
 
 test("rejects off-site URLs and cross-origin redirects", async () => {
   await assert.rejects(() => readPage("https://other.example/a", "https://example.com"), /off-site/);
+  await assert.rejects(() => readPage("https://user:secret@example.com/a", "https://example.com"), /off-site/);
   const page = await readPage("https://example.com/a", "https://example.com", {
     fetcher: async () => new Response(null, { status: 302, headers: { location: "https://other.example/a" } }),
   });
