@@ -123,6 +123,10 @@ test("CLI collects configured and sitemap URLs from a local site", async () => {
     const result = await runAsync(["collect"], cwd);
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(result.stdout.trim().split("\n"), [`${siteUrl}/`, `${siteUrl}/pricing`, `${siteUrl}/blog`]);
+    const json = await runAsync(["collect", "--json"], cwd);
+    assert.equal(json.status, 0, json.stderr);
+    assert.equal(JSON.parse(json.stdout).schemaVersion, 1);
+    assert.deepEqual(JSON.parse(json.stdout).urls, [`${siteUrl}/`, `${siteUrl}/pricing`, `${siteUrl}/blog`]);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     rmSync(cwd, { recursive: true, force: true });
@@ -145,6 +149,25 @@ test("CLI inspects metadata from a local page", async () => {
     assert.equal(page.url, `${siteUrl}/about`);
     assert.equal(page.title, "Local title");
     assert.deepEqual(page.descriptions, ["Local description"]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("CLI requires noindex on preview pages", async () => {
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "text/html");
+    response.end('<head><title>Preview</title><meta name="description" content="Draft"><link rel="canonical" href="/draft"></head>');
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const cwd = mkdtempSync(join(tmpdir(), "siteproof-cli-"));
+  try {
+    writeFileSync(join(cwd, "siteproof.config.json"), JSON.stringify({ siteUrl: `http://127.0.0.1:${server.address().port}`, environment: "preview" }));
+    const result = await runAsync(["check", "/draft"], cwd);
+    assert.equal(result.status, 1);
+    assert.equal(JSON.parse(result.stdout).environment, "preview");
+    assert.ok(JSON.parse(result.stdout).findings.some((finding) => finding.code === "noindex_missing"));
   } finally {
     await new Promise((resolve) => server.close(resolve));
     rmSync(cwd, { recursive: true, force: true });

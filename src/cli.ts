@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { calculateSeoHealth, checkFactBindings, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, generateRobots, generateSitemap, makeFindingReport, previewJsonLd, readPage, readPageDocument, readRobots, validateConfig, version } from "./index.js";
+import { calculateGeoReadiness, calculateSeoHealth, checkFactBindings, checkRobots, checkSeoMetadata, checkSitemapCoverage, checkSocialMetadata, checkStructuredData, collectUrls, generateRobots, generateSitemap, makeFindingReport, previewJsonLd, readPage, readPageDocument, readRobots, validateConfig, version } from "./index.js";
 import type { SiteproofConfig } from "./index.js";
 
 const defaultConfig = "siteproof.config.json";
@@ -11,7 +11,7 @@ const help = `Siteproof ${version}
 Usage:
   siteproof init --url <site origin>
   siteproof config validate [config file]
-  siteproof collect [config file]
+  siteproof collect [config file] [--json]
   siteproof coverage [config file]
   siteproof sitemap generate [config file]
   siteproof robots generate [config file]
@@ -81,16 +81,21 @@ async function validateFile(args: string[]): Promise<number> {
 }
 
 async function collect(args: string[]): Promise<number> {
-  if (args.length > 1) {
-    console.error("Usage: siteproof collect [config file]");
+  const json = args.includes("--json");
+  const files = args.filter((arg) => arg !== "--json");
+  if (files.length > 1 || args.length !== files.length + Number(json)) {
+    console.error("Usage: siteproof collect [config file] [--json]");
     return 2;
   }
-  const config = await loadConfig(resolve(args[0] ?? defaultConfig));
+  const config = await loadConfig(resolve(files[0] ?? defaultConfig));
   if (!config) return 1;
   const result = await collectUrls(config);
-  for (const url of result.urls) console.log(url);
-  for (const issue of result.issues) console.error(`${issue.source}: ${issue.message}`);
-  if (result.truncated) console.error("Collection was truncated by a configured limit");
+  if (json) console.log(JSON.stringify({ schemaVersion: 1, environment: config.environment ?? "production", ...result }, null, 2));
+  else {
+    for (const url of result.urls) console.log(url);
+    for (const issue of result.issues) console.error(`${issue.source}: ${issue.message}`);
+    if (result.truncated) console.error("Collection was truncated by a configured limit");
+  }
   return result.issues.length || result.truncated ? 1 : 0;
 }
 
@@ -103,7 +108,7 @@ async function coverage(args: string[]): Promise<number> {
   if (!config) return 1;
   const collection = await collectUrls(config);
   const result = checkSitemapCoverage(config, collection);
-  console.log(JSON.stringify({ ...result, collectionIssues: collection.issues }, null, 2));
+  console.log(JSON.stringify({ schemaVersion: 1, environment: config.environment ?? "production", ...result, collectionIssues: collection.issues }, null, 2));
   return result.findings.some((finding) => finding.severity === "error") || !result.complete ? 1 : 0;
 }
 
@@ -201,7 +206,8 @@ async function check(args: string[]): Promise<number> {
       path.startsWith(candidate.match.slice(0, -2))).sort((a, b) => b.match.length - a.match.length)[0];
   const document = await readPageDocument(new URL(args[0], config.siteUrl).href, config.siteUrl);
   const page = document.metadata;
-  const findings = checkSeoMetadata(page, { required: rule?.required, indexable: rule?.indexable });
+  const intendedIndexable = config.environment === "preview" ? false : rule?.indexable;
+  const findings = checkSeoMetadata(page, { required: rule?.required, indexable: intendedIndexable });
   findings.push(...checkSocialMetadata(page, rule?.required?.includes("ogImage")));
   const facts = checkFactBindings(document.html, page.url, config);
   for (const finding of facts.findings) {
@@ -224,8 +230,8 @@ async function check(args: string[]): Promise<number> {
     if (!decision.allowed) {
       findings.push({
         code: "robots_blocked",
-        severity: rule?.indexable === false ? "warning" : "error",
-        message: rule?.indexable === false
+        severity: intendedIndexable === false ? "warning" : "error",
+        message: intendedIndexable === false
           ? "Googlebot cannot read this page's noindex directive"
           : "Googlebot is blocked from a page intended for search",
         evidence: decision.rule ? `robots.txt line ${decision.rule.line}: ${decision.rule.type}: ${decision.rule.path}` : undefined,
@@ -237,7 +243,8 @@ async function check(args: string[]): Promise<number> {
     robotsChecked: !robots.error,
     socialRequired: rule?.required?.includes("ogImage"),
   });
-  console.log(JSON.stringify({ ...report, seoHealth, facts, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
+  const geoReadiness = calculateGeoReadiness(page, facts, structuredData);
+  console.log(JSON.stringify({ schemaVersion: 1, environment: config.environment ?? "production", ...report, seoHealth, geoReadiness, facts, structuredData: { blocks: structuredData.blocks, nodes: structuredData.nodes } }, null, 2));
   return report.summary.errors ? 1 : 0;
 }
 

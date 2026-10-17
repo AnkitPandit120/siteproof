@@ -1,6 +1,7 @@
 import type { SiteproofConfig } from "./config.js";
 
 export function generateRobots(config: SiteproofConfig): string {
+  if (config.environment === "preview") return "User-agent: *\nAllow: /\n";
   const groups = config.robotsRules ?? [];
   const sections = groups.map((group) => [
     ...group.userAgents.map((agent) => `User-agent: ${agent}`),

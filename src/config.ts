@@ -35,6 +35,7 @@ export interface RobotsConfigGroup {
 
 export interface SiteproofConfig {
   siteUrl: string;
+  environment?: "production" | "preview";
   pages?: string[];
   sitemapUrl?: string;
   routes?: RouteRule[];
@@ -84,7 +85,11 @@ export function validateConfig(input: unknown): ValidationResult {
     return { ok: false, issues: [{ path: "$", message: "Configuration must be an object" }] };
   }
 
-  unknownKeys(input, ["siteUrl", "pages", "sitemapUrl", "routes", "facts", "bindings", "robotsRules", "jsonLdTemplates"], "$", issues);
+  unknownKeys(input, ["siteUrl", "environment", "pages", "sitemapUrl", "routes", "facts", "bindings", "robotsRules", "jsonLdTemplates"], "$", issues);
+
+  if (input.environment !== undefined && input.environment !== "production" && input.environment !== "preview") {
+    issues.push({ path: "$.environment", message: "Must be production or preview" });
+  }
 
   if (typeof input.siteUrl !== "string") {
     issues.push({ path: "$.siteUrl", message: "Must be an HTTP or HTTPS site origin" });
@@ -147,6 +152,9 @@ export function validateConfig(input: unknown): ValidationResult {
         }
         if (route.indexable === false && route.sitemap === "required") {
           issues.push({ path, message: "A noindex route cannot be required in the sitemap" });
+        }
+        if (input.environment === "preview" && route.indexable === true) {
+          issues.push({ path: `${path}.indexable`, message: "Preview routes cannot be indexable" });
         }
         if (route.required !== undefined) {
           if (!Array.isArray(route.required) || route.required.some((tag: unknown) =>

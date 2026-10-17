@@ -18,6 +18,8 @@ export { makeFindingReport } from "./report.js";
 export type { FindingReport, FindingSummary } from "./report.js";
 export { calculateSeoHealth } from "./score.js";
 export type { ScoreCheck, ScoreOptions, SeoHealthScore } from "./score.js";
+export { calculateGeoReadiness } from "./geo-score.js";
+export type { GeoReadinessScore } from "./geo-score.js";
 export { checkFactBindings } from "./facts.js";
 export type { FactBindingResult, FactCheckResult, FactFinding } from "./facts.js";
 export { generateSitemap } from "./generate-sitemap.js";

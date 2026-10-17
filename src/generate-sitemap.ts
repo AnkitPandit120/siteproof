@@ -18,6 +18,7 @@ function escapeXml(value: string): string {
 }
 
 export function generateSitemap(config: SiteproofConfig): GeneratedSitemap {
+  if (config.environment === "preview") throw new Error("Preview sites must not publish a sitemap");
   const origin = new URL(config.siteUrl).origin;
   const rules = config.routes ?? [];
   const paths = new Set(["/", ...(config.pages ?? []),
