@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Explainable SEO health and GEO readiness checks for websites",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "siteproof": "./dist/cli.js"
@@ -16,10 +17,11 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "examples"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs"
   },
