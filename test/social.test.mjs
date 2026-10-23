@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkSocialMetadata, extractPageMetadata } from "../dist/index.js";
+import { checkSocialMetadata } from "../dist/social.js";
+import { extractPageMetadata } from "../dist/page.js";
 
 const url = "https://example.com/article";
 const codes = (html, required = false) => checkSocialMetadata(extractPageMetadata(`<head>${html}</head>`, url), required).map((finding) => finding.code);

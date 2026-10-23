@@ -22,7 +22,7 @@ try {
   };
   const path = join(directory, "siteproof.config.json");
   await writeFile(path, JSON.stringify(config));
-  const child = spawn(process.execPath, [cli, "check", "/pricing", path], { stdio: "inherit" });
+  const child = spawn(process.execPath, [cli, "score", `${config.siteUrl}/pricing`, "--config", path], { stdio: "inherit" });
   const code = await new Promise((resolve) => child.on("close", resolve));
   if (code !== 0) process.exitCode = code ?? 1;
 } finally {

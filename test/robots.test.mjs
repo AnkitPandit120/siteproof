@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkRobots, parseRobots, readRobots } from "../dist/index.js";
+import { checkRobots, parseRobots, readRobots } from "../dist/robots.js";
 
 const url = "https://example.com/private/help";
 

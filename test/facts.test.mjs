@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkFactBindings } from "../dist/index.js";
+import { checkFactBindings } from "../dist/facts.js";
 
 const config = {
   siteUrl: "https://example.com",

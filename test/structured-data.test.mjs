@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkStructuredData, extractPageMetadata } from "../dist/index.js";
+import { checkStructuredData } from "../dist/structured-data.js";
+import { extractPageMetadata } from "../dist/page.js";
 
 const url = "https://example.com/article";
 const pageWith = (...blocks) => extractPageMetadata(`<head>${blocks.map((block) => `<script type="application/ld+json">${block}</script>`).join("")}</head>`, url);

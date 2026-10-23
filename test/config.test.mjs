@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateConfig } from "../dist/index.js";
+import { validateConfig } from "../dist/config.js";
 
 test("accepts a site with route rules and explicitly bound facts", () => {
   const config = {
     siteUrl: "https://example.com",
     routes: [
-      { match: "/blog/**", indexable: true, sitemap: "required", required: ["title", "canonical"] },
-      { match: "/search", indexable: false, sitemap: "excluded" },
+      { match: "/blog/**", indexable: true, required: ["title", "canonical"] },
+      { match: "/search", indexable: false },
     ],
     facts: { proPrice: { value: 499, currency: "INR", billingPeriod: "month" } },
     bindings: [{ route: "/pricing", selector: "[data-price]", fact: "proPrice" }],
@@ -16,7 +16,7 @@ test("accepts a site with route rules and explicitly bound facts", () => {
   assert.deepEqual(validateConfig(config), { ok: true, config });
 });
 
-test("rejects a noindex route required in a sitemap and an unknown fact binding", () => {
+test("rejects obsolete generation settings and an unknown fact binding", () => {
   const result = validateConfig({
     siteUrl: "https://example.com",
     routes: [{ match: "/private", indexable: false, sitemap: "required" }],
@@ -24,7 +24,7 @@ test("rejects a noindex route required in a sitemap and an unknown fact binding"
   });
 
   assert.equal(result.ok, false);
-  assert.ok(result.issues.some((issue) => issue.path === "$.routes[0]"));
+  assert.ok(result.issues.some((issue) => issue.path === "$.routes[0].sitemap"));
   assert.ok(result.issues.some((issue) => issue.path === "$.bindings[0].fact"));
 });
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkSeoMetadata, extractPageMetadata } from "../dist/index.js";
+import { checkSeoMetadata } from "../dist/checks.js";
+import { extractPageMetadata } from "../dist/page.js";
 
 const url = "https://example.com/article";
 const codes = (html, options) => checkSeoMetadata(extractPageMetadata(html, url), options).map((finding) => finding.code);

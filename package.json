@@ -1,7 +1,7 @@
 {
   "name": "siteproof-seo",
-  "version": "0.0.0",
-  "description": "Explainable SEO health and GEO readiness checks for websites",
+  "version": "0.1.0-beta.1",
+  "description": "SEO and GEO scores for a website page",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -20,7 +20,7 @@
     "examples"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
     "prepack": "npm run build",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs"
@@ -33,7 +33,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "cheerio": "^1.2.0",
-    "fast-xml-parser": "^5.11.2"
+    "cheerio": "^1.2.0"
   }
 }

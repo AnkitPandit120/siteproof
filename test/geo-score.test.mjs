@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateGeoReadiness, checkFactBindings, checkStructuredData, extractPageMetadata } from "../dist/index.js";
+import { calculateGeoReadiness } from "../dist/geo-score.js";
+import { checkFactBindings } from "../dist/facts.js";
+import { checkStructuredData } from "../dist/structured-data.js";
+import { extractPageMetadata } from "../dist/page.js";
 
 const config = { siteUrl: "https://example.com", facts: { name: { value: "Acme" } }, bindings: [{ route: "/", selector: "h1", fact: "name" }] };
 

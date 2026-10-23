@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateSeoHealth, extractPageMetadata } from "../dist/index.js";
+import { calculateSeoHealth } from "../dist/score.js";
+import { extractPageMetadata } from "../dist/page.js";
 
 const url = "https://example.com/article";
 const complete = extractPageMetadata('<head><title>Article</title><meta name="description" content="Summary"><link rel="canonical" href="https://example.com/article"><meta property="og:title" content="Article"><meta property="og:description" content="Summary"><meta property="og:image" content="https://example.com/cover.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Article"}</script></head>', url);

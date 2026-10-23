@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { extractPageMetadata, readPage, readPageDocument } from "../dist/index.js";
+import { extractPageMetadata, readPage, readPageDocument } from "../dist/page.js";
 
 const fixture = readFileSync(new URL("./fixtures/article.html", import.meta.url), "utf8");
 
