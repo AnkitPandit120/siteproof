@@ -2,11 +2,21 @@
   "name": "siteproof-seo",
   "version": "0.1.0-beta.1",
   "description": "SEO and GEO scores for a website page",
-  "private": true,
   "license": "UNLICENSED",
+  "keywords": [
+    "seo",
+    "geo",
+    "website",
+    "score",
+    "audit"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
   "type": "module",
   "bin": {
-    "siteproof": "./dist/cli.js"
+    "siteproof": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -20,7 +30,7 @@
     "examples"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/cli.js',0o755)\"",
     "prepack": "npm run build",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs"

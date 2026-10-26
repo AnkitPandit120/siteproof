@@ -11,10 +11,10 @@ It does not predict search rankings, AI citations, or traffic. The score is a re
 
 ## Run it
 
-Requires Node.js 20 or newer. Install the private beta package, then score your running site:
+Requires Node.js 20 or newer. Install the beta package, then score your running site:
 
 ```sh
-npm install --save-dev /path/to/siteproof-seo-0.1.0-beta.1.tgz
+npm install --save-dev siteproof-seo@beta
 npx siteproof score http://localhost:3000/
 npx siteproof score http://localhost:3000/pricing
 ```
@@ -56,4 +56,4 @@ npm test
 node examples/local-demo.mjs
 ```
 
-This package is a private beta and has not been published to npm.
+This beta is configured for the `beta` npm tag. The GitHub source repository remains private. The package is marked `UNLICENSED`; no open-source license is granted.
