@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 function run(args) {
   return spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
@@ -27,7 +28,7 @@ function runAsync(args) {
 
 test("CLI exposes one scoring command", () => {
   assert.match(run(["--help"]).stdout, /siteproof score <page URL>/);
-  assert.equal(run(["--version"]).stdout.trim(), "0.1.0-beta.1");
+  assert.equal(run(["--version"]).stdout.trim(), version);
   assert.equal(run(["collect"]).status, 2);
   assert.equal(run(["sitemap", "generate"]).status, 2);
 });
